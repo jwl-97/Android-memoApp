@@ -1,6 +1,8 @@
 package com.jiwoolee.memoappchallenge
 
 import android.content.Context
+import android.util.Base64
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -29,11 +31,14 @@ class RecyclerviewAdapter(val context: Context, val memos: List<Memo>) :
         fun bind(memo: Memo) {
             itemView.tv_item_title.text = memo.memoTitle
             itemView.tv_item_content.text = memo.memoContent
-
-            Glide.with(itemView.context)
-                .load(memo.memoImages?.get(0))
-                .fitCenter()
-                .into(itemView.iv_item_thumbnail)
+            Log.d("ljwLog", memo.memoImages.toString())
+            if (memo.memoImages?.get(0) != "") {
+                val array: ByteArray = Base64.decode(memo.memoImages?.get(0), Base64.DEFAULT)
+                Glide.with(itemView.context)
+                    .load(array)
+                    .fitCenter()
+                    .into(itemView.iv_item_thumbnail)
+            }
         }
     }
 }

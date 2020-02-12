@@ -2,4 +2,9 @@
     <string name="app_name">memoAppChallenge</string>
     <string name="add_text">추가</string>
     <string name="test_image_link">https://test312.s3.ap-northeast-2.amazonaws.com/1.PNG</string>
+    <string-array name="LAN">
+        <item>"앨범"</item>
+        <item>"카메라"</item>
+        <item>"외부 이미지 주소(URL)"</item>
+    </string-array>
 </resources>
