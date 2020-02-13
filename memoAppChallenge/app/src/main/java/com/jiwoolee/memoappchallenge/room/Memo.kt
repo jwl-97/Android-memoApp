@@ -11,5 +11,5 @@ class Memo(@PrimaryKey var id: Long?,
            @ColumnInfo(name = "memoContent") var memoContent: String,
            @ColumnInfo(name = "memoImages") var memoImages : List<String>?
 ){
-    constructor(): this(null,"", "", null)
+    constructor(): this(null,"", "", listOf(""))
 }

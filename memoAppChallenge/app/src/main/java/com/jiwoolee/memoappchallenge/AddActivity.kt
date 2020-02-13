@@ -11,30 +11,32 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
 import android.util.Log
 import android.view.View
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageButton
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.FileProvider
 import com.jiwoolee.memoappchallenge.room.Memo
 import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_add.*
-import kotlinx.android.synthetic.main.activity_main.*
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.*
 
-
-class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickListener{
-    private var memoDb : MemoDB? = null
+class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickListener {
+    private var memoDb: MemoDB? = null
     private var newMemo = Memo()
-    private var memoLIst : MutableList<String> = mutableListOf<String>()
-    private lateinit var r : Runnable
+    private var memoImageLIst: MutableList<String> = mutableListOf<String>()
+    private lateinit var r: Runnable
+
     private var isCamera: Boolean? = false
+    private var tempFile: File? = null
 
     companion object {
         @SuppressLint("StaticFieldLeak")
@@ -54,12 +56,11 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         r = Runnable {
             newMemo.memoTitle = et_add_title.text.toString()
             newMemo.memoContent = et_add_content.text.toString()
-            if(memoLIst.isEmpty()){
+            if (memoImageLIst.isEmpty()) {
                 newMemo.memoImages = listOf("")
-            }else{
-                newMemo.memoImages = memoLIst
+            } else {
+                newMemo.memoImages = memoImageLIst
             }
-
             memoDb?.memoDao()?.insert(newMemo)
         }
 
@@ -67,27 +68,27 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         btn_cancel.setOnClickListener(this)
         btn_addImages.setOnClickListener(this)
         btn_addImages.setOnLongClickListener(this)
-
     }
 
     @SuppressLint("MissingSuperCall")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (resultCode != Activity.RESULT_OK) { //중간에 취소시
             Toast.makeText(this, "취소 되었습니다.", Toast.LENGTH_SHORT).show()
+            if (tempFile != null) {
+                if (tempFile!!.exists()) {
+                    if (tempFile!!.delete()) {
+                        tempFile = null
+                    }
+                }
+            }
             return
         }
 
         when (requestCode) {
             PICK_FROM_ALBUM -> {
-                val photoUri: Uri? = data!!.data
-                val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, photoUri)
-                btn_addImages.setImageBitmap(bitmap) //이미지뷰에 적용
-
-                val stream = ByteArrayOutputStream() //bitmap->byteArray->base64로 db list에 저장
-                bitmap!!.compress(Bitmap.CompressFormat.PNG, 90, stream)
-                val image = stream.toByteArray()
-                val saveThis: String = Base64.encodeToString(image, Base64.DEFAULT)
-                memoLIst.add(saveThis)
+                setImageToImagebutton(data!!.data!!)
+//                Log.d("ljwLog", memoLIst.toString())
+//                Log.d("ljwLog", "size : "+memoLIst.size.toString())
 
 //                val linearLayout = findViewById<ViewGroup>(R.id.linearLayoutID)
 //                val bt = ImageButton(this)
@@ -98,34 +99,36 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 //                    registerPictures()
 //                }
             }
-        }
-    }
 
-    //권한요청
-    private fun requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 6.0 마쉬멜로우 이상일 경우에는 권한 체크 후 권한 요청
-            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                Log.d("ljwLog", "권한 설정 완료")
-            } else {
-                Log.d("ljwLog", "권한 설정 요청")
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
+            PICK_FROM_CAMERA -> {
+                setImageToImagebutton(Uri.fromFile(tempFile))
             }
         }
     }
 
-    // 권한
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        Log.d("ljwLog", "onRequestPermissionsResult")
-        if (grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
-            Log.d("ljwLog", "Permission: " + permissions[0] + "was " + grantResults[0])
-        }
+    //이미지 파일 다루기
+    private fun setImageToImagebutton(photoUri : Uri){
+        val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, photoUri)
+        val resizedBitmap = resizeBitmap(bitmap, 600, 600)
+        btn_addImages.setImageBitmap(resizedBitmap)             //이미지버튼에 적용
+        memoImageLIst.add(convertBitmapToBase64(resizedBitmap)) //bitmap을 base64로 변환 -> 리스트에 추가 -> (db에 저장)
     }
 
+    private fun convertBitmapToBase64(resizedBitmap : Bitmap) : String{
+        val stream = ByteArrayOutputStream()                    //bitmap->byteArray->base64
+        resizedBitmap.compress(Bitmap.CompressFormat.PNG, 10, stream)
+        val image = stream.toByteArray()
+        return Base64.encodeToString(image, Base64.DEFAULT)
+    }
+
+    private fun resizeBitmap(bitmap: Bitmap, width: Int, height: Int): Bitmap {
+        return Bitmap.createScaledBitmap(bitmap, width, height, false)
+    }
+
+    //listener
     override fun onClick(v: View?) {
         when (v?.id) {
-            R.id.btn_add ->{
+            R.id.btn_add -> {
                 val addThread = Thread(r)
                 addThread.start()
 
@@ -137,17 +140,18 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         }
     }
 
-    override fun onLongClick(v: View?): Boolean {
+    override fun onLongClick(v: View?): Boolean { //롱클릭시 이미지 삭제
         when (v?.id) {
             R.id.btn_addImages -> {
                 Toast.makeText(mContext, "롱클릭", Toast.LENGTH_LONG).show()
-                btn_addImages.setImageResource(R.drawable.ic_addbox) //이미지뷰에 적용
-                memoLIst.removeAt(0)
+                btn_addImages.setImageResource(R.drawable.ic_addbox) //이미지버튼에 적용
+                memoImageLIst.removeAt(0) //리스트에서 삭제
             }
         }
         return true
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //카메라or앨범 선택
     private fun registerPictures() {
         val builder = AlertDialog.Builder(mContext)
@@ -156,7 +160,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         builder.setItems(R.array.LAN) { _, pos ->
             when (pos) {
                 0 -> goAlbum()
-//                1 -> takePhoto()
+                1 -> takePhoto()
 //                2 ->
             }
         }
@@ -172,6 +176,65 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         val intent = Intent(Intent.ACTION_PICK)
         intent.type = MediaStore.Images.Media.CONTENT_TYPE
         startActivityForResult(intent, PICK_FROM_ALBUM)
+    }
+
+    //카메라에서 이미지 가져오기
+    private fun takePhoto() {
+        isCamera = true
+
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+
+        try {
+            tempFile = createImageFile()
+        } catch (e: IOException) {
+            Toast.makeText(this, "이미지 처리 오류! 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
+            finish()
+            e.printStackTrace()
+        }
+
+        if (tempFile != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val photoUri = FileProvider.getUriForFile(this, "com.jiwoolee.memoappchallenge.fileprovider", tempFile!!)/////
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+                startActivityForResult(intent, PICK_FROM_CAMERA)
+            } else {
+                val photoUri = Uri.fromFile(tempFile)
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+                startActivityForResult(intent, PICK_FROM_CAMERA)
+            }
+        }
+    }
+
+    @SuppressLint("SimpleDateFormat")
+    @Throws(IOException::class)
+    private fun createImageFile(): File {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        val filePrefix = "img_" + timeStamp + "_";
+        val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val image = File.createTempFile(filePrefix, ".jpg", storageDir)
+        return image
+    }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //권한요청
+    private fun requestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 6.0 마쉬멜로우 이상일 경우에는 권한 체크 후 권한 요청
+            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                Log.d("ljwLog", "권한 설정 완료")
+            } else {
+                Log.d("ljwLog", "권한 설정 요청")
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
+            }
+        }
+    }
+
+    // 권한
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        Log.d("ljwLog", "onRequestPermissionsResult")
+        if (grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+            Log.d("ljwLog", "Permission: " + permissions[0] + "was " + grantResults[0])
+        }
     }
 
     override fun onDestroy() {
