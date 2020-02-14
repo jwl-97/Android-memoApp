@@ -24,6 +24,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".AddActivity"/>
+        <activity android:name=".DetailActivity"/>
 
         <!-- 카메라관련-->
         <provider

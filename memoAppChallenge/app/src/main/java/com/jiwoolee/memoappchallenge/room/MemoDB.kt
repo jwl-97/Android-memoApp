@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [Memo::class], version = 4)
+@Database(entities = [Memo::class], version = 5)
 @TypeConverters(Converters::class)
 
 abstract class MemoDB: RoomDatabase() {

@@ -8,8 +8,8 @@ import androidx.room.PrimaryKey
 
 class Memo(@PrimaryKey var id: Long?,
            @ColumnInfo(name = "memoTitle") var memoTitle: String?,
-           @ColumnInfo(name = "memoContent") var memoContent: String,
-           @ColumnInfo(name = "memoImages") var memoImages : List<String>?
+           @ColumnInfo(name = "memoContent") var memoContent: String?,
+           @ColumnInfo(name = "memoImages") var memoImages : ArrayList<String>?
 ){
-    constructor(): this(null,"", "", listOf(""))
+    constructor(): this(null,"", "", arrayListOf<String>(""))
 }

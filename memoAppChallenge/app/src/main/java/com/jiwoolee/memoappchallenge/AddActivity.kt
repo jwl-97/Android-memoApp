@@ -25,15 +25,18 @@ import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_add.*
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.ArrayList
 
 class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickListener {
     private var memoDb: MemoDB? = null
     private var newMemo = Memo()
-    private var memoImageLIst: MutableList<String> = mutableListOf<String>()
+    private var memoImageLIst: ArrayList<String> = ArrayList<String>()
     private lateinit var r: Runnable
+    private lateinit var mCurrentPhotoPath: String
 
     private var isCamera: Boolean? = false
     private var tempFile: File? = null
@@ -57,7 +60,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
             newMemo.memoTitle = et_add_title.text.toString()
             newMemo.memoContent = et_add_content.text.toString()
             if (memoImageLIst.isEmpty()) {
-                newMemo.memoImages = listOf("")
+                newMemo.memoImages = arrayListOf("")
             } else {
                 newMemo.memoImages = memoImageLIst
             }

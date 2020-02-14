@@ -7,8 +7,8 @@
 
     <ImageView
         android:id="@+id/iv_item_thumbnail"
-        android:layout_width="49dp"
-        android:layout_height="match_parent"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
         android:src="@drawable/ic_launcher_background" />
 
     <TextView
@@ -22,9 +22,4 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         tools:text="tvItemContent" />
-
-    <Button
-        android:id="@+id/btn_item_back"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
 </LinearLayout>

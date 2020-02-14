@@ -12,4 +12,7 @@ interface MemoDao {
 
     @Insert(onConflict = REPLACE)
     fun insert(memo: Memo)
+
+    @Query("DELETE FROM memo WHERE id = :userId")
+    fun deleteById(userId: Long?)
 }

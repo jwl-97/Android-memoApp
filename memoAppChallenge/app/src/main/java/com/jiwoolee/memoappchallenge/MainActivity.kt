@@ -10,9 +10,9 @@ import com.jiwoolee.memoappchallenge.room.Memo
 import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_main.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), OnItemClick{
     private var memoDb: MemoDB? = null
-    private var memoList = listOf<Memo>()
+    private var memoList : ArrayList<Memo> = arrayListOf<Memo>()
     private lateinit var mAdapter: RecyclerviewAdapter
     private lateinit var recyclerView: RecyclerView
 
@@ -21,11 +21,12 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         recyclerView = findViewById(R.id.recyclerView)
+
         memoDb = MemoDB.getInstance(this)
 
         val loadThread = Thread(Runnable {
             try {
-                memoList = memoDb?.memoDao()?.getAll()!!
+                memoList = memoDb?.memoDao()?.getAll() as ArrayList<Memo>
                 setRecyclerviewAdapter()
             } catch (e: Exception) {
                 Log.d("ljwLog", "memoDao()?.getAll()_err : $e")
@@ -44,8 +45,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setRecyclerviewAdapter(){
-        mAdapter = RecyclerviewAdapter(this, memoList)
+    private fun setRecyclerviewAdapter() {
+        mAdapter = RecyclerviewAdapter(this, memoList, this)
         mAdapter.notifyDataSetChanged()
         recyclerView.adapter = mAdapter
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -55,5 +56,17 @@ class MainActivity : AppCompatActivity() {
         MemoDB.destroyInstance()
         memoDb = null
         super.onDestroy()
+    }
+
+    override fun onClick(memoItem : Memo) {
+        val intent = Intent(applicationContext, DetailActivity::class.java)
+
+        val bundle = Bundle()
+        bundle.putString("title", memoItem.memoTitle)
+        bundle.putString("content", memoItem.memoContent)
+        bundle.putStringArrayList("images", memoItem.memoImages)
+        intent.putExtras(bundle)
+
+        startActivity(intent)
     }
 }
