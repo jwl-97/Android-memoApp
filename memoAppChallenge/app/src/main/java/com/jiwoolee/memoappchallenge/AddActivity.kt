@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -25,7 +27,6 @@ import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_add.*
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileNotFoundException
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,7 +37,6 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     private var newMemo = Memo()
     private var memoImageLIst: ArrayList<String> = ArrayList<String>()
     private lateinit var r: Runnable
-    private lateinit var mCurrentPhotoPath: String
 
     private var isCamera: Boolean? = false
     private var tempFile: File? = null
@@ -111,21 +111,39 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 
     //이미지 파일 다루기
     private fun setImageToImagebutton(photoUri : Uri){
-        val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, photoUri)
-        val resizedBitmap = resizeBitmap(bitmap, 600, 600)
+        val bitmap : Bitmap
+        val options = BitmapFactory.Options()
+        options.inSampleSize = 4
+
+//        if(isCamera == true){
+//            bitmap = rotateImage(BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!, 90)
+//        }else{
+//            bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
+//        }
+
+        bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
+
+        val resizedBitmap = resizeBitmap(bitmap, 300, 400)
         btn_addImages.setImageBitmap(resizedBitmap)             //이미지버튼에 적용
         memoImageLIst.add(convertBitmapToBase64(resizedBitmap)) //bitmap을 base64로 변환 -> 리스트에 추가 -> (db에 저장)
     }
 
     private fun convertBitmapToBase64(resizedBitmap : Bitmap) : String{
         val stream = ByteArrayOutputStream()                    //bitmap->byteArray->base64
-        resizedBitmap.compress(Bitmap.CompressFormat.PNG, 10, stream)
+        resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         val image = stream.toByteArray()
         return Base64.encodeToString(image, Base64.DEFAULT)
     }
 
     private fun resizeBitmap(bitmap: Bitmap, width: Int, height: Int): Bitmap {
         return Bitmap.createScaledBitmap(bitmap, width, height, false)
+    }
+
+    //사진회전
+    private fun rotateImage(source: Bitmap, angle: Int): Bitmap {
+        val matrix = Matrix()
+        matrix.postRotate(angle.toFloat())
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
     //listener
@@ -135,7 +153,10 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
                 val addThread = Thread(r)
                 addThread.start()
 
-                startActivity(Intent(this, MainActivity::class.java))
+                val intent = Intent(this, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                startActivity(intent)
+
                 finish()
             }
             R.id.btn_cancel -> finish()

@@ -3,6 +3,7 @@ package com.jiwoolee.memoappchallenge
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -40,7 +41,7 @@ class MainActivity : AppCompatActivity(), OnItemClick{
             Log.d("ljwLog", "loadThread.join()_err : $e")
         }
 
-        btn_toAddActivity.setOnClickListener {
+        fab_toAddActivity.setOnClickListener {
             startActivity(Intent(this, AddActivity::class.java))
         }
     }
@@ -58,10 +59,23 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         super.onDestroy()
     }
 
+    //뒤로가기 버튼을 두번 연속으로 눌러야 종료
+    private var time: Long = 0
+
+    override fun onBackPressed() {
+        if (System.currentTimeMillis() - time >= 2000) {
+            time = System.currentTimeMillis()
+            Toast.makeText(applicationContext, "뒤로 버튼을 한번 더 누르면 종료합니다.", Toast.LENGTH_SHORT).show();
+        } else if (System.currentTimeMillis() - time < 2000) {
+            finish()
+        }
+    }
+
     override fun onClick(memoItem : Memo) {
         val intent = Intent(applicationContext, DetailActivity::class.java)
 
         val bundle = Bundle()
+        bundle.putLong("id", memoItem.id!!)
         bundle.putString("title", memoItem.memoTitle)
         bundle.putString("content", memoItem.memoContent)
         bundle.putStringArrayList("images", memoItem.memoImages)

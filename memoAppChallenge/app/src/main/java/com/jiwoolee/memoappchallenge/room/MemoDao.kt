@@ -14,5 +14,5 @@ interface MemoDao {
     fun insert(memo: Memo)
 
     @Query("DELETE FROM memo WHERE id = :userId")
-    fun deleteById(userId: Long?)
+    fun deleteById(userId: Long)
 }
