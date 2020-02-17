@@ -12,13 +12,20 @@
         android:orientation="horizontal">
 
         <ImageButton
-            android:id="@+id/btn_add"
+            android:id="@+id/btn_add_ok"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/ic_write" />
 
         <ImageButton
-            android:id="@+id/btn_cancel"
+            android:id="@+id/btn_add_edit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_edit"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_add_cancel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/ic_cancel" />
@@ -71,7 +78,6 @@
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/linearLayoutID"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
@@ -82,10 +88,10 @@
             android:layout_gravity="start"
             android:text="사진 : " />
 
-        <androidx.appcompat.widget.AppCompatImageButton
-            android:id="@+id/btn_addImages"
-            android:layout_width="90dp"
-            android:layout_height="90dp"
+        <ImageView
+            android:id="@+id/iv_add_Images"
+            android:layout_width="150dp"
+            android:layout_height="210dp"
             android:src="@drawable/ic_addbox" />
     </LinearLayout>
 </LinearLayout>

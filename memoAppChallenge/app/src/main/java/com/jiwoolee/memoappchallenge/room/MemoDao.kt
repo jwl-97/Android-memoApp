@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy.REPLACE
 import androidx.room.Query
+import androidx.room.Update
 
 @Dao
 interface MemoDao {
@@ -14,5 +15,8 @@ interface MemoDao {
     fun insert(memo: Memo)
 
     @Query("DELETE FROM memo WHERE id = :userId")
-    fun deleteById(userId: Long)
+    fun deleteById(userId: Long?)
+
+    @Update
+    fun update(memo: Memo)
 }

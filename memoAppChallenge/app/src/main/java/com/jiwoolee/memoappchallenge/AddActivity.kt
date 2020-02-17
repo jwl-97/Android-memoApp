@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.text.Editable
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -22,9 +23,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.FileProvider
+import com.bumptech.glide.Glide
 import com.jiwoolee.memoappchallenge.room.Memo
 import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_add.*
+import kotlinx.android.synthetic.main.activity_detail.*
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -32,17 +35,20 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
 
+/*
+메모 추가/편집 화면
+ */
 class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickListener {
     private var memoDb: MemoDB? = null
     private var newMemo = Memo()
-    private var memoImageLIst: ArrayList<String> = ArrayList<String>()
-    private lateinit var r: Runnable
+    private var memoImageLIst: ArrayList<String> = ArrayList()
 
     private var isCamera: Boolean? = false
     private var tempFile: File? = null
 
     companion object {
         @SuppressLint("StaticFieldLeak")
+        lateinit var intent: Intent
         lateinit var mContext: Context
         private const val PICK_FROM_ALBUM = 1
         private const val PICK_FROM_CAMERA = 2
@@ -56,25 +62,33 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         requestPermissions() //권한요청
 
         memoDb = MemoDB.getInstance(this)
-        r = Runnable {
-            newMemo.memoTitle = et_add_title.text.toString()
-            newMemo.memoContent = et_add_content.text.toString()
-            if (memoImageLIst.isEmpty()) {
-                newMemo.memoImages = arrayListOf("")
-            } else {
-                newMemo.memoImages = memoImageLIst
+        val bundle = intent.extras
+        if (bundle != null) {
+            btn_add_edit.visibility = View.VISIBLE
+            btn_add_ok.visibility = View.GONE
+
+            if (newMemo != null) {
+                newMemo = bundle.getSerializable(("memo")) as Memo
+                et_add_title.text = Editable.Factory.getInstance().newEditable(newMemo.memoTitle)
+                et_add_content.text =
+                    Editable.Factory.getInstance().newEditable(newMemo.memoContent)
+                val array: ByteArray = Base64.decode(newMemo.memoImages?.get(0), Base64.DEFAULT)
+                Glide.with(this)
+                    .load(array)
+                    .fitCenter()
+                    .into(iv_add_Images)
             }
-            memoDb?.memoDao()?.insert(newMemo)
         }
 
-        btn_add.setOnClickListener(this)
-        btn_cancel.setOnClickListener(this)
-        btn_addImages.setOnClickListener(this)
-        btn_addImages.setOnLongClickListener(this)
+        btn_add_ok.setOnClickListener(this)
+        btn_add_cancel.setOnClickListener(this)
+        btn_add_edit.setOnClickListener(this)
+        iv_add_Images.setOnClickListener(this)
+        iv_add_Images.setOnLongClickListener(this)
     }
 
-    @SuppressLint("MissingSuperCall")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) { //중간에 취소시
             Toast.makeText(this, "취소 되었습니다.", Toast.LENGTH_SHORT).show()
             if (tempFile != null) {
@@ -110,8 +124,8 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     }
 
     //이미지 파일 다루기
-    private fun setImageToImagebutton(photoUri : Uri){
-        val bitmap : Bitmap
+    private fun setImageToImagebutton(photoUri: Uri) {
+        val bitmap: Bitmap
         val options = BitmapFactory.Options()
         options.inSampleSize = 4
 
@@ -121,14 +135,15 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 //            bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
 //        }
 
-        bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
+        bitmap =
+            BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
 
         val resizedBitmap = resizeBitmap(bitmap, 300, 400)
-        btn_addImages.setImageBitmap(resizedBitmap)             //이미지버튼에 적용
+        iv_add_Images.setImageBitmap(resizedBitmap)             //이미지버튼에 적용
         memoImageLIst.add(convertBitmapToBase64(resizedBitmap)) //bitmap을 base64로 변환 -> 리스트에 추가 -> (db에 저장)
     }
 
-    private fun convertBitmapToBase64(resizedBitmap : Bitmap) : String{
+    private fun convertBitmapToBase64(resizedBitmap: Bitmap): String {
         val stream = ByteArrayOutputStream()                    //bitmap->byteArray->base64
         resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         val image = stream.toByteArray()
@@ -149,26 +164,70 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     //listener
     override fun onClick(v: View?) {
         when (v?.id) {
-            R.id.btn_add -> {
-                val addThread = Thread(r)
-                addThread.start()
+            R.id.btn_add_ok -> {
+                Thread(Runnable {
+                    storeListToMemo()
+                    memoDb?.memoDao()?.insert(newMemo) //INSERT
+                }).start()
 
-                val intent = Intent(this, MainActivity::class.java)
+                intent = Intent(this, MainActivity::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 startActivity(intent)
 
                 finish()
             }
-            R.id.btn_cancel -> finish()
-            R.id.btn_addImages -> registerPictures() //카메라or앨범 선택
+
+            R.id.btn_add_edit -> {
+                Thread(Runnable {
+                    newMemo.memoTitle = et_add_title.text.toString()
+                    newMemo.memoContent = et_add_content.text.toString()
+
+                    if (memoImageLIst.isEmpty() && newMemo.memoImages!![0].isEmpty()) {
+                        newMemo.memoImages = arrayListOf("")
+                    } else if (memoImageLIst.isEmpty() && newMemo.memoImages!!.isNotEmpty()) {
+                        memoImageLIst.add(newMemo.memoImages!![0])
+                        newMemo.memoImages = memoImageLIst
+                    } else {
+                        newMemo.memoImages = memoImageLIst
+                    }
+
+                    Log.d("ljwLog", memoImageLIst.size.toString())
+
+                    memoDb?.memoDao()?.update(newMemo) //UPDATE
+                }).start()
+
+                intent = Intent(applicationContext, AddActivity::class.java)
+                val bundle = Bundle()
+                bundle.putSerializable("memo", newMemo)
+                intent.putExtras(bundle)
+
+                setResult(Activity.RESULT_OK, intent)
+                finish()
+
+                btn_add_edit.visibility = View.GONE
+                btn_add_ok.visibility = View.VISIBLE
+            }
+
+            R.id.btn_add_cancel -> finish()
+            R.id.iv_add_Images -> registerPictures() //카메라or앨범 선택
+        }
+    }
+
+    private fun storeListToMemo() {
+        newMemo.memoTitle = et_add_title.text.toString()
+        newMemo.memoContent = et_add_content.text.toString()
+        if (memoImageLIst.isEmpty()) {
+            newMemo.memoImages = arrayListOf("")
+        } else {
+            newMemo.memoImages = memoImageLIst
         }
     }
 
     override fun onLongClick(v: View?): Boolean { //롱클릭시 이미지 삭제
         when (v?.id) {
-            R.id.btn_addImages -> {
+            R.id.iv_add_Images -> {
                 Toast.makeText(mContext, "롱클릭", Toast.LENGTH_LONG).show()
-                btn_addImages.setImageResource(R.drawable.ic_addbox) //이미지버튼에 적용
+                iv_add_Images.setImageResource(R.drawable.ic_addbox) //이미지버튼에 적용
                 memoImageLIst.removeAt(0) //리스트에서 삭제
             }
         }
@@ -197,7 +256,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     private fun goAlbum() {
         isCamera = false
 
-        val intent = Intent(Intent.ACTION_PICK)
+        intent = Intent(Intent.ACTION_PICK)
         intent.type = MediaStore.Images.Media.CONTENT_TYPE
         startActivityForResult(intent, PICK_FROM_ALBUM)
     }
@@ -206,7 +265,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     private fun takePhoto() {
         isCamera = true
 
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
         try {
             tempFile = createImageFile()
@@ -218,7 +277,11 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 
         if (tempFile != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                val photoUri = FileProvider.getUriForFile(this, "com.jiwoolee.memoappchallenge.fileprovider", tempFile!!)/////
+                val photoUri = FileProvider.getUriForFile(
+                    this,
+                    "com.jiwoolee.memoappchallenge.fileprovider",
+                    tempFile!!
+                )/////
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
                 startActivityForResult(intent, PICK_FROM_CAMERA)
             } else {
@@ -243,17 +306,28 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     //권한요청
     private fun requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 6.0 마쉬멜로우 이상일 경우에는 권한 체크 후 권한 요청
-            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
                 Log.d("ljwLog", "권한 설정 완료")
             } else {
                 Log.d("ljwLog", "권한 설정 요청")
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    1
+                )
             }
         }
     }
 
     // 권한
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         Log.d("ljwLog", "onRequestPermissionsResult")
         if (grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
@@ -263,6 +337,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 
     override fun onDestroy() {
         MemoDB.destroyInstance()
+        memoDb = null
         super.onDestroy()
     }
 }

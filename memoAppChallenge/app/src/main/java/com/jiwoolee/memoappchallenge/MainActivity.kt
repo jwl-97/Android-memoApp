@@ -1,5 +1,6 @@
 package com.jiwoolee.memoappchallenge
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -21,13 +22,20 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        memoDb = MemoDB.getInstance(this)
         recyclerView = findViewById(R.id.recyclerView)
 
-        memoDb = MemoDB.getInstance(this)
+        loadItem()
 
+        fab_toAddActivity.setOnClickListener {
+            startActivity(Intent(this, AddActivity::class.java))
+        }
+    }
+
+    private fun loadItem(){
         val loadThread = Thread(Runnable {
             try {
-                memoList = memoDb?.memoDao()?.getAll() as ArrayList<Memo>
+                memoList = memoDb?.memoDao()?.getAll() as ArrayList<Memo> //SELECT ALL
                 setRecyclerviewAdapter()
             } catch (e: Exception) {
                 Log.d("ljwLog", "memoDao()?.getAll()_err : $e")
@@ -40,10 +48,6 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         } catch (e: java.lang.Exception) {
             Log.d("ljwLog", "loadThread.join()_err : $e")
         }
-
-        fab_toAddActivity.setOnClickListener {
-            startActivity(Intent(this, AddActivity::class.java))
-        }
     }
 
     private fun setRecyclerviewAdapter() {
@@ -53,15 +57,8 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         recyclerView.layoutManager = LinearLayoutManager(this)
     }
 
-    override fun onDestroy() {
-        MemoDB.destroyInstance()
-        memoDb = null
-        super.onDestroy()
-    }
-
     //뒤로가기 버튼을 두번 연속으로 눌러야 종료
     private var time: Long = 0
-
     override fun onBackPressed() {
         if (System.currentTimeMillis() - time >= 2000) {
             time = System.currentTimeMillis()
@@ -75,12 +72,15 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         val intent = Intent(applicationContext, DetailActivity::class.java)
 
         val bundle = Bundle()
-        bundle.putLong("id", memoItem.id!!)
-        bundle.putString("title", memoItem.memoTitle)
-        bundle.putString("content", memoItem.memoContent)
-        bundle.putStringArrayList("images", memoItem.memoImages)
+        bundle.putSerializable("memo", memoItem)
         intent.putExtras(bundle)
 
         startActivity(intent)
+    }
+
+    override fun onDestroy() {
+        MemoDB.destroyInstance()
+        memoDb = null
+        super.onDestroy()
     }
 }
