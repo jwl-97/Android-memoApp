@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -27,7 +28,6 @@ import com.bumptech.glide.Glide
 import com.jiwoolee.memoappchallenge.room.Memo
 import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_add.*
-import kotlinx.android.synthetic.main.activity_detail.*
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -43,12 +43,12 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     private var newMemo = Memo()
     private var memoImageLIst: ArrayList<String> = ArrayList()
 
-    private var isCamera: Boolean? = false
+    private var isCamera: Boolean = false
     private var tempFile: File? = null
+    private var mCurrentPhotoPath: String = ""
 
     companion object {
         @SuppressLint("StaticFieldLeak")
-        lateinit var intent: Intent
         lateinit var mContext: Context
         private const val PICK_FROM_ALBUM = 1
         private const val PICK_FROM_CAMERA = 2
@@ -62,22 +62,12 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         requestPermissions() //권한요청
 
         memoDb = MemoDB.getInstance(this)
-        val bundle = intent.extras
+        val bundle = intent.extras //DetailActivity에서 편집 클릭시 (DetailActivity -> AddActivity)
         if (bundle != null) {
-            btn_add_edit.visibility = View.VISIBLE
-            btn_add_ok.visibility = View.GONE
+            setEditModeVisible(true)
 
-            if (newMemo != null) {
-                newMemo = bundle.getSerializable(("memo")) as Memo
-                et_add_title.text = Editable.Factory.getInstance().newEditable(newMemo.memoTitle)
-                et_add_content.text =
-                    Editable.Factory.getInstance().newEditable(newMemo.memoContent)
-                val array: ByteArray = Base64.decode(newMemo.memoImages?.get(0), Base64.DEFAULT)
-                Glide.with(this)
-                    .load(array)
-                    .fitCenter()
-                    .into(iv_add_Images)
-            }
+            newMemo = bundle.getSerializable(("memo")) as Memo
+            setDataToForm(newMemo)
         }
 
         btn_add_ok.setOnClickListener(this)
@@ -117,28 +107,19 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 //                }
             }
 
-            PICK_FROM_CAMERA -> {
-                setImageToImagebutton(Uri.fromFile(tempFile))
-            }
+            PICK_FROM_CAMERA -> setImageToImagebutton(Uri.fromFile(tempFile))
         }
     }
 
     //이미지 파일 다루기
     private fun setImageToImagebutton(photoUri: Uri) {
-        val bitmap: Bitmap
         val options = BitmapFactory.Options()
         options.inSampleSize = 4
 
-//        if(isCamera == true){
-//            bitmap = rotateImage(BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!, 90)
-//        }else{
-//            bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
-//        }
+        val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
+        val rotatedBitmap : Bitmap = if(isCamera) getRotatedBitmap(mCurrentPhotoPath, bitmap) else bitmap
 
-        bitmap =
-            BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
-
-        val resizedBitmap = resizeBitmap(bitmap, 300, 400)
+        val resizedBitmap = resizeBitmap(rotatedBitmap, 300, 400)
         iv_add_Images.setImageBitmap(resizedBitmap)             //이미지버튼에 적용
         memoImageLIst.add(convertBitmapToBase64(resizedBitmap)) //bitmap을 base64로 변환 -> 리스트에 추가 -> (db에 저장)
     }
@@ -155,16 +136,40 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     }
 
     //사진회전
+    private fun getRotatedBitmap(path : String, bitmap: Bitmap) : Bitmap{
+        val ei = ExifInterface(path)
+        val orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1) //각도구하기
+
+        return when (orientation) { //각도에 따른 회전
+            ExifInterface.ORIENTATION_ROTATE_90 -> rotateImage(bitmap, 90)
+            ExifInterface.ORIENTATION_ROTATE_180 -> rotateImage(bitmap, 180)
+            ExifInterface.ORIENTATION_ROTATE_270 -> rotateImage(bitmap, 270)
+            else -> bitmap
+        }
+    }
+
     private fun rotateImage(source: Bitmap, angle: Int): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(angle.toFloat())
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private fun setDataToForm(newMemo : Memo){
+        et_add_title.text = Editable.Factory.getInstance().newEditable(newMemo.memoTitle)
+        et_add_content.text = Editable.Factory.getInstance().newEditable(newMemo.memoContent)
+        val array: ByteArray = Base64.decode(newMemo.memoImages?.get(0), Base64.DEFAULT)
+        Glide.with(this)
+            .load(array)
+            .fitCenter()
+            .into(iv_add_Images)
+    }
+
     //listener
     override fun onClick(v: View?) {
         when (v?.id) {
-            R.id.btn_add_ok -> {
+            R.id.btn_add_ok -> { //추가
                 Thread(Runnable {
                     storeListToMemo()
                     memoDb?.memoDao()?.insert(newMemo) //INSERT
@@ -177,22 +182,9 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
                 finish()
             }
 
-            R.id.btn_add_edit -> {
+            R.id.btn_add_edit -> { //편집
                 Thread(Runnable {
-                    newMemo.memoTitle = et_add_title.text.toString()
-                    newMemo.memoContent = et_add_content.text.toString()
-
-                    if (memoImageLIst.isEmpty() && newMemo.memoImages!![0].isEmpty()) {
-                        newMemo.memoImages = arrayListOf("")
-                    } else if (memoImageLIst.isEmpty() && newMemo.memoImages!!.isNotEmpty()) {
-                        memoImageLIst.add(newMemo.memoImages!![0])
-                        newMemo.memoImages = memoImageLIst
-                    } else {
-                        newMemo.memoImages = memoImageLIst
-                    }
-
-                    Log.d("ljwLog", memoImageLIst.size.toString())
-
+                    storeListToMemo()
                     memoDb?.memoDao()?.update(newMemo) //UPDATE
                 }).start()
 
@@ -204,8 +196,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
                 setResult(Activity.RESULT_OK, intent)
                 finish()
 
-                btn_add_edit.visibility = View.GONE
-                btn_add_ok.visibility = View.VISIBLE
+                setEditModeVisible(false)
             }
 
             R.id.btn_add_cancel -> finish()
@@ -216,10 +207,24 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     private fun storeListToMemo() {
         newMemo.memoTitle = et_add_title.text.toString()
         newMemo.memoContent = et_add_content.text.toString()
-        if (memoImageLIst.isEmpty()) {
+
+        if (memoImageLIst.isEmpty() && newMemo.memoImages!![0].isEmpty()) {
             newMemo.memoImages = arrayListOf("")
+        } else if (memoImageLIst.isEmpty() && newMemo.memoImages!!.isNotEmpty()) {
+            memoImageLIst.add(newMemo.memoImages!![0])
+            newMemo.memoImages = memoImageLIst
         } else {
             newMemo.memoImages = memoImageLIst
+        }
+    }
+
+    private fun setEditModeVisible(boolean: Boolean){
+        if(boolean){
+            btn_add_edit.visibility = View.VISIBLE
+            btn_add_ok.visibility = View.GONE
+        }else{
+            btn_add_edit.visibility = View.GONE
+            btn_add_ok.visibility = View.VISIBLE
         }
     }
 
@@ -299,6 +304,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         val filePrefix = "img_" + timeStamp + "_";
         val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         val image = File.createTempFile(filePrefix, ".jpg", storageDir)
+        mCurrentPhotoPath = image.absolutePath
         return image
     }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -322,12 +328,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         }
     }
 
-    // 권한
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         Log.d("ljwLog", "onRequestPermissionsResult")
         if (grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {

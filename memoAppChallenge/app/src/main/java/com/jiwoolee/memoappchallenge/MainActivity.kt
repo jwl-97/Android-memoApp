@@ -1,6 +1,5 @@
 package com.jiwoolee.memoappchallenge
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -25,20 +24,20 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         memoDb = MemoDB.getInstance(this)
         recyclerView = findViewById(R.id.recyclerView)
 
-        loadItem()
+        getItemFromDb()
 
         fab_toAddActivity.setOnClickListener {
             startActivity(Intent(this, AddActivity::class.java))
         }
     }
 
-    private fun loadItem(){
+    private fun getItemFromDb(){
         val loadThread = Thread(Runnable {
             try {
                 memoList = memoDb?.memoDao()?.getAll() as ArrayList<Memo> //SELECT ALL
                 setRecyclerviewAdapter()
             } catch (e: Exception) {
-                Log.d("ljwLog", "memoDao()?.getAll()_err : $e")
+                Log.d("ljwLog", "MainActivity_getAll()_err : $e")
             }
         })
         loadThread.start()
@@ -46,7 +45,7 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         try {
             loadThread.join() //Thread안에서 선행 작업 실행 완료 후 다음 작업 수행(순차적)
         } catch (e: java.lang.Exception) {
-            Log.d("ljwLog", "loadThread.join()_err : $e")
+            Log.d("ljwLog", "MainActivity_loadThread.join()_err : $e")
         }
     }
 
@@ -68,6 +67,14 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         }
     }
 
+    override fun onDestroy() {
+        MemoDB.destroyInstance()
+        memoDb = null
+        super.onDestroy()
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //OnItemClick
     override fun onClick(memoItem : Memo) {
         val intent = Intent(applicationContext, DetailActivity::class.java)
 
@@ -76,11 +83,5 @@ class MainActivity : AppCompatActivity(), OnItemClick{
         intent.putExtras(bundle)
 
         startActivity(intent)
-    }
-
-    override fun onDestroy() {
-        MemoDB.destroyInstance()
-        memoDb = null
-        super.onDestroy()
     }
 }

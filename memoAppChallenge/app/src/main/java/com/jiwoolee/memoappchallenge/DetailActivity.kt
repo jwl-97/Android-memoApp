@@ -5,9 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Base64
-import android.util.Log
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
 import com.jiwoolee.memoappchallenge.room.Memo
@@ -33,17 +31,25 @@ class DetailActivity : AppCompatActivity(), View.OnClickListener {
 
         memoDb = MemoDB.getInstance(this)
 
-        val bundle = intent.extras
+        val bundle = intent.extras //Recyclerview item 클릭시 (RecyclerviewAdapter -> MainActivity -> DetailActivity)
         if (bundle != null) {
             memoList = bundle.getSerializable(("memo")) as Memo?
-            setData(memoList)
+            setDataToForm(memoList)
         }
 
         btn_detail_view_delete.setOnClickListener(this)
         btn_detail_view_edit.setOnClickListener(this)
     }
 
-    fun setData(memoList : Memo?){
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if(resultCode == Activity.RESULT_OK && requestCode == REQUEST_EDIT){ //편집 완료시 (DetailActivity -> AddActivity -> DetailActivity)
+            memoList = data?.getSerializableExtra("memo") as Memo?
+            setDataToForm(memoList)
+        }
+    }
+
+    private fun setDataToForm(memoList : Memo?){
         id = memoList?.id
         images = memoList?.memoImages
 
@@ -73,9 +79,11 @@ class DetailActivity : AppCompatActivity(), View.OnClickListener {
 
             R.id.btn_detail_view_edit -> { //편집
                 val intent = Intent(applicationContext, AddActivity::class.java)
+
                 val bundle = Bundle()
                 bundle.putSerializable("memo", memoList)
                 intent.putExtras(bundle)
+
                 startActivityForResult(intent, REQUEST_EDIT)
             }
         }
@@ -87,14 +95,6 @@ class DetailActivity : AppCompatActivity(), View.OnClickListener {
         startActivity(intent)
 
         finish()
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if(resultCode == Activity.RESULT_OK && requestCode == REQUEST_EDIT){ //편집 완료시
-            memoList = data?.getSerializableExtra("memo") as Memo?
-            setData(memoList)
-        }
     }
 
     override fun onDestroy() {
