@@ -1,10 +1,12 @@
 package com.jiwoolee.memoappchallenge
 
 import android.Manifest
+import android.accounts.NetworkErrorException
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -12,14 +14,13 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.os.Environment
+import android.os.*
 import android.provider.MediaStore
 import android.text.Editable
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -28,9 +29,11 @@ import com.bumptech.glide.Glide
 import com.jiwoolee.memoappchallenge.room.Memo
 import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_add.*
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.IOException
+import java.io.*
+import java.net.URL
+import java.net.URLConnection
+import java.net.UnknownHostException
+import java.security.AccessController.getContext
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
@@ -46,6 +49,8 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     private var isCamera: Boolean = false
     private var tempFile: File? = null
     private var mCurrentPhotoPath: String = ""
+    private lateinit var alertDialog : AlertDialog
+    private var handler : DisplayHandler? = null
 
     companion object {
         @SuppressLint("StaticFieldLeak")
@@ -92,34 +97,28 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         }
 
         when (requestCode) {
-            PICK_FROM_ALBUM -> {
-                setImageToImagebutton(data!!.data!!)
-//                Log.d("ljwLog", memoLIst.toString())
-//                Log.d("ljwLog", "size : "+memoLIst.size.toString())
+            PICK_FROM_ALBUM -> setImage(data!!.data!!)
 
-//                val linearLayout = findViewById<ViewGroup>(R.id.linearLayoutID)
-//                val bt = ImageButton(this)
-//                bt.setBackgroundResource(R.drawable.ic_addbox)
-//                bt.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-//                linearLayout.addView(bt)
-//                bt.setOnClickListener {
-//                    registerPictures()
-//                }
-            }
-
-            PICK_FROM_CAMERA -> setImageToImagebutton(Uri.fromFile(tempFile))
+            PICK_FROM_CAMERA -> setImage(Uri.fromFile(tempFile))
         }
     }
 
     //이미지 파일 다루기
-    private fun setImageToImagebutton(photoUri: Uri) {
+    private fun setImage(photoUri: Uri) {
+        val bitmap = makeBitmap(contentResolver.openInputStream(photoUri))
+        setImageToButtonAndSave(bitmap)
+    }
+
+    private fun makeBitmap(inputStream: InputStream?) : Bitmap{
         val options = BitmapFactory.Options()
         options.inSampleSize = 4
+        return BitmapFactory.decodeStream(inputStream, null, options)!!
+    }
 
-        val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(photoUri), null, options)!!
-        val rotatedBitmap : Bitmap = if(isCamera) getRotatedBitmap(mCurrentPhotoPath, bitmap) else bitmap
-
+    private fun setImageToButtonAndSave(bitmap: Bitmap) {
+        val rotatedBitmap : Bitmap = if(isCamera) getAngledBitmap(mCurrentPhotoPath, bitmap) else bitmap
         val resizedBitmap = resizeBitmap(rotatedBitmap, 300, 400)
+
         iv_add_Images.setImageBitmap(resizedBitmap)             //이미지버튼에 적용
         memoImageLIst.add(convertBitmapToBase64(resizedBitmap)) //bitmap을 base64로 변환 -> 리스트에 추가 -> (db에 저장)
     }
@@ -136,7 +135,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     }
 
     //사진회전
-    private fun getRotatedBitmap(path : String, bitmap: Bitmap) : Bitmap{
+    private fun getAngledBitmap(path : String, bitmap: Bitmap) : Bitmap{
         val ei = ExifInterface(path)
         val orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1) //각도구하기
 
@@ -171,7 +170,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
         when (v?.id) {
             R.id.btn_add_ok -> { //추가
                 Thread(Runnable {
-                    storeListToMemo()
+                    storeItemToMemo()
                     memoDb?.memoDao()?.insert(newMemo) //INSERT
                 }).start()
 
@@ -184,7 +183,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 
             R.id.btn_add_edit -> { //편집
                 Thread(Runnable {
-                    storeListToMemo()
+                    storeItemToMemo()
                     memoDb?.memoDao()?.update(newMemo) //UPDATE
                 }).start()
 
@@ -200,11 +199,11 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
             }
 
             R.id.btn_add_cancel -> finish()
-            R.id.iv_add_Images -> registerPictures() //카메라or앨범 선택
+            R.id.iv_add_Images -> selectRegisterImagesType() //카메라or앨범orURL 선택
         }
     }
 
-    private fun storeListToMemo() {
+    private fun storeItemToMemo() {
         newMemo.memoTitle = et_add_title.text.toString()
         newMemo.memoContent = et_add_content.text.toString()
 
@@ -240,16 +239,16 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //카메라or앨범 선택
-    private fun registerPictures() {
+    //카메라or앨범orURL 선택
+    private fun selectRegisterImagesType() {
         val builder = AlertDialog.Builder(mContext)
         builder.setTitle("사진 추가")
 
         builder.setItems(R.array.LAN) { _, pos ->
             when (pos) {
-                0 -> goAlbum()
-                1 -> takePhoto()
-//                2 ->
+                0 -> imageFromAlbum() //앨범
+                1 -> imageFromCamera() //카메라
+                2 -> getUrlLink() //URL링크
             }
         }
 
@@ -258,7 +257,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     }
 
     //앨범에서 이미지 가져오기
-    private fun goAlbum() {
+    private fun imageFromAlbum() {
         isCamera = false
 
         intent = Intent(Intent.ACTION_PICK)
@@ -267,9 +266,8 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     }
 
     //카메라에서 이미지 가져오기
-    private fun takePhoto() {
+    private fun imageFromCamera() {
         isCamera = true
-
         intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
         try {
@@ -282,17 +280,82 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
 
         if (tempFile != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                val photoUri = FileProvider.getUriForFile(
-                    this,
-                    "com.jiwoolee.memoappchallenge.fileprovider",
-                    tempFile!!
-                )/////
+                val photoUri = FileProvider.getUriForFile(this, "com.jiwoolee.memoappchallenge.fileprovider", tempFile!!)/////
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
                 startActivityForResult(intent, PICK_FROM_CAMERA)
             } else {
                 val photoUri = Uri.fromFile(tempFile)
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
                 startActivityForResult(intent, PICK_FROM_CAMERA)
+            }
+        }
+    }
+
+    //URL링크를 통해 이미지 가져오기
+    private fun getUrlLink(){
+        val et = EditText(mContext)
+        et.setText(R.string.test_url_link)
+
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("외부 이미지 주소(URL)")
+            .setMessage("URL을 입력하세요")
+            .setView(et)
+            .setPositiveButton("확인") { _, _ ->
+                val value = et.text.toString()
+                imageFromUrlLink(value)
+            }
+            .setNegativeButton("취소") { _, _ -> }
+
+        alertDialog = builder.create()
+        alertDialog.show()
+    }
+
+    private fun imageFromUrlLink(url : String){
+        isCamera = false
+        handler = DisplayHandler()
+
+        var bitmap : Bitmap? = null
+        var isOk : Boolean = true
+
+        val getThread = Thread(Runnable {
+            try {
+                val conn = URL(url).openConnection()
+                conn.doInput = true
+                conn.connect()
+                val inputStream = conn.getInputStream()
+                bitmap = makeBitmap(inputStream)
+            }catch (e : IOException) {
+                //UnknownHostException, FileNotFoundException
+                Log.d("ljwLog", "AddActivity_UnknownHostException_err : $e")
+
+                val msg = Message()
+                msg.what = -1
+                msg.obj = "URL주소 혹은 네트워크 상태를 확인해주세요."
+                handler?.sendMessage(msg) //Toast
+
+                alertDialog.dismiss()
+                isOk = false
+            }
+        })
+        getThread.start()
+
+        try {
+            getThread.join() //Thread안에서 선행 작업 실행 완료 후 다음 작업 수행(순차적)
+        } catch (e: java.lang.Exception) {
+            Log.d("ljwLog", "AddActivity_getThread.join()_err : $e")
+        }
+
+        if(isOk){
+            setImageToButtonAndSave(bitmap!!)
+        }
+
+    }
+
+    inner class DisplayHandler : Handler(){
+        override fun handleMessage(msg: Message?) {
+            super.handleMessage(msg)
+            if(msg?.what == -1) {
+                Toast.makeText(mContext, msg.obj.toString(), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -312,18 +375,11 @@ class AddActivity : AppCompatActivity(), View.OnClickListener, View.OnLongClickL
     //권한요청
     private fun requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // 6.0 마쉬멜로우 이상일 경우에는 권한 체크 후 권한 요청
-            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
+            if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 Log.d("ljwLog", "권한 설정 완료")
             } else {
                 Log.d("ljwLog", "권한 설정 요청")
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                    1
-                )
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
             }
         }
     }
