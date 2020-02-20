@@ -1,7 +1,6 @@
-package com.jiwoolee.memoappchallenge
+package com.jiwoolee.memoappchallenge.adapter
 
 import android.content.Context
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.jiwoolee.memoappchallenge.R
 import com.jiwoolee.memoappchallenge.room.Memo
 import kotlinx.android.synthetic.main.item_memo.view.*
 
@@ -22,7 +22,9 @@ class RecyclerviewAdapter(val context: Context, val memos: ArrayList<Memo>, val 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CustomViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_memo, parent, false)
-        return CustomViewHolder(view)
+        return CustomViewHolder(
+            view
+        )
     }
 
     override fun getItemCount(): Int {
@@ -32,10 +34,9 @@ class RecyclerviewAdapter(val context: Context, val memos: ArrayList<Memo>, val 
     override fun onBindViewHolder(holder: CustomViewHolder, position: Int) {
         holder.itemTitle.text = memos[position].memoTitle
         holder.itemContent.text = memos[position].memoContent
-        if (memos[position].memoImages?.get(0) != "") {
-            val array: ByteArray = Base64.decode(memos[position].memoImages?.get(0), Base64.DEFAULT)
+        if (memos[position].memoImages[0] != "") {
             Glide.with(holder.context)
-                .load(array)
+                .load(memos[position].memoImages[0]) //첫번째 사진을 썸네일로
                 .fitCenter()
                 .into(holder.itemThumnail)
         }

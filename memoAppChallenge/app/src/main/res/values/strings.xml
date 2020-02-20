@@ -1,10 +1,17 @@
 <resources>
     <string name="app_name">memoAppChallenge</string>
-    <string name="add_text">추가</string>
-    <string-array name="LAN">
+    <string-array name="TYPE">
         <item>"앨범"</item>
         <item>"카메라"</item>
         <item>"외부 이미지 주소(URL)"</item>
     </string-array>
+
+    <string name="add_text">추가</string>
+    <string name="title_text">제목 : </string>
+    <string name="content_text">내용 : </string>
+    <string name="images_text">사진 : </string>
+    <string name="input_title_text">제목을 입력해주세요</string>
+    <string name="input_content_text">내용을 입력해주세요</string>
+
     <string name="test_url_link">https://jiwoolee.s3.ap-northeast-2.amazonaws.com/image_black.png</string>
 </resources>

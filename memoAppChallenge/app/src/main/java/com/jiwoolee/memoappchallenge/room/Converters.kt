@@ -8,14 +8,14 @@ import java.lang.reflect.Type
 object Converters {
     @TypeConverter
     @JvmStatic
-    fun fromString(value: String?): ArrayList<String> {
-        val listType: Type = object : TypeToken<ArrayList<String?>?>() {}.type
+    fun fromString(value: String?): List<String> {
+        val listType: Type = object : TypeToken<List<String?>?>() {}.type
         return Gson().fromJson(value, listType)
     }
 
     @TypeConverter
     @JvmStatic
-    fun fromArrayLisr(list: ArrayList<String?>?): String {
+    fun fromArrayLisr(list: List<String?>?): String {
         val gson = Gson()
         return gson.toJson(list)
     }

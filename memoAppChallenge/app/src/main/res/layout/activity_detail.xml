@@ -18,16 +18,16 @@
             android:orientation="horizontal">
 
             <ImageButton
-                android:id="@+id/btn_detail_view_edit"
+                android:id="@+id/ib_detail_view_edit"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_edit"/>
+                android:src="@drawable/ic_edit" />
 
             <ImageButton
-                android:id="@+id/btn_detail_view_delete"
+                android:id="@+id/ib_detail_view_delete"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/ic_delete"/>
+                android:src="@drawable/ic_delete" />
         </LinearLayout>
 
         <LinearLayout
@@ -40,7 +40,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="start"
-                android:text="제목 : " />
+                android:text="@string/title_text" />
 
             <TextView
                 android:id="@+id/tv_detail_view_title"
@@ -59,7 +59,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="start"
-                android:text="내용 : " />
+                android:text="@string/content_text" />
 
             <TextView
                 android:id="@+id/tv_detail_view_content"
@@ -77,13 +77,15 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="start"
-                android:text="사진 : " />
+                android:text="@string/images_text" />
 
-            <ImageView
-                android:id="@+id/iv_detail_view_image"
-                android:layout_width="150dp"
-                android:layout_height="210dp"
-                android:background="@android:color/transparent"/>
+            <GridLayout
+                android:id="@+id/detail_images_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:animateLayoutChanges="true"
+                android:columnCount="2"
+                android:orientation="horizontal" />
         </LinearLayout>
     </LinearLayout>
 

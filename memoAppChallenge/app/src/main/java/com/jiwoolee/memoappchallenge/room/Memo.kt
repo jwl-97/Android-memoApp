@@ -9,7 +9,7 @@ import java.io.Serializable
 class Memo(@PrimaryKey var id: Long?,
            @ColumnInfo(name = "memoTitle") var memoTitle: String?,
            @ColumnInfo(name = "memoContent") var memoContent: String?,
-           @ColumnInfo(name = "memoImages") var memoImages : ArrayList<String>?
+           @ColumnInfo(name = "memoImages") var memoImages : List<String>
 ):Serializable{
-    constructor(): this(null,"", "", arrayListOf<String>(""))
+    constructor(): this(null,"", "", listOf<String>())
 }

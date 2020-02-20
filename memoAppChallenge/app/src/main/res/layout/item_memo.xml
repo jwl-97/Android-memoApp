@@ -38,7 +38,7 @@
             android:maxLines="1"
             android:textSize="17sp"
             android:textStyle="bold"
-            tools:text="tvItemTitle" />
+            tools:text="@string/title_text" />
 
         <TextView
             android:id="@+id/tv_item_content"
@@ -47,7 +47,6 @@
             android:layout_marginTop="3dp"
             android:ellipsize="end"
             android:maxLines="2"
-            tools:text="tvItemContent" />
+            tools:text="@string/content_text" />
     </LinearLayout>
-
 </LinearLayout>

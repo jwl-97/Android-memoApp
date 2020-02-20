@@ -1,4 +1,4 @@
-package com.jiwoolee.memoappchallenge
+package com.jiwoolee.memoappchallenge.adapter
 
 import com.jiwoolee.memoappchallenge.room.Memo
 
