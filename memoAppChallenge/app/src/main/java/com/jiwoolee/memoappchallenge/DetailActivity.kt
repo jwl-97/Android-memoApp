@@ -3,11 +3,13 @@ package com.jiwoolee.memoappchallenge
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.setPadding
 import com.bumptech.glide.Glide
 import com.jiwoolee.memoappchallenge.room.Memo
 import com.jiwoolee.memoappchallenge.room.MemoDB
@@ -59,18 +61,22 @@ class DetailActivity : AppCompatActivity(), View.OnClickListener {
         tv_detail_view_content.text = memoList?.memoContent
 
         val images = memoList?.memoImages
+
         if (images != null && images[0] != "") {
             for (image in images) {
                 val imageHolder = LayoutInflater.from(this).inflate(R.layout.item_image, null)
                 val thumbnail = imageHolder.iv_images
 
+                val array: ByteArray = Base64.decode(image, Base64.DEFAULT)
                 Glide.with(this)
-                    .load(image)
+                    .load(array)
                     .fitCenter()
                     .into(thumbnail)
 
                 imagesContainer.addView(imageHolder)
-                thumbnail.layoutParams = FrameLayout.LayoutParams(300, 300)
+                thumbnail.layoutParams = FrameLayout.LayoutParams(300, 400)
+                thumbnail.setPadding(10)
+                thumbnail.setBackgroundResource(R.color.transparent)
             }
         }
     }

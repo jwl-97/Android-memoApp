@@ -1,6 +1,7 @@
 package com.jiwoolee.memoappchallenge.adapter
 
 import android.content.Context
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -34,9 +35,11 @@ class RecyclerviewAdapter(val context: Context, val memos: ArrayList<Memo>, val 
     override fun onBindViewHolder(holder: CustomViewHolder, position: Int) {
         holder.itemTitle.text = memos[position].memoTitle
         holder.itemContent.text = memos[position].memoContent
+
         if (memos[position].memoImages[0] != "") {
+            val array: ByteArray = Base64.decode(memos[position].memoImages[0], Base64.DEFAULT)
             Glide.with(holder.context)
-                .load(memos[position].memoImages[0]) //첫번째 사진을 썸네일로
+                .load(array) //첫번째 사진을 썸네일로
                 .fitCenter()
                 .into(holder.itemThumnail)
         }

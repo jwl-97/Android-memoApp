@@ -106,8 +106,13 @@
                         android:id="@+id/btn_add_Images"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="10dp"
                         android:text="@string/add_text" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:text="@string/image_delete_guide_text" />
 
                     <GridLayout
                         android:id="@+id/add_images_container"
