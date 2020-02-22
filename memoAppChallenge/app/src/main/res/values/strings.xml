@@ -13,6 +13,7 @@
     <string name="input_title_text">제목을 입력해주세요</string>
     <string name="input_content_text">내용을 입력해주세요</string>
     <string name="image_delete_guide_text">* 이미지 삭제는 해당 이미지를 길게 클릭하세요.</string>
+    <string name="image_edit_guide_text">\t* 해당 이미지 클릭시 크게 볼 수 있습니다.</string>
 
-    <string name="test_url_link">https://jiwoolee.s3.ap-northeast-2.amazonaws.com/image_black.png</string>
+    <string name="test_url_link">https://jiwoolee.s3.ap-northeast-2.amazonaws.com/image_url.PNG</string>
 </resources>

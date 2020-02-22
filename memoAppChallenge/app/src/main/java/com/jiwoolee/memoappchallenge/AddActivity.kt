@@ -43,26 +43,23 @@ import androidx.core.view.setPadding
 메모 추가/편집 화면
  */
 class AddActivity : AppCompatActivity(), View.OnClickListener {
+    lateinit var mContext: Context
+    private val PICK_FROM_ALBUM = 1
+    private val PICK_FROM_CAMERA = 2
+
     private var memoDb: MemoDB? = null
     private var newMemo = Memo()
     private var memoImageLIst: ArrayList<String> = ArrayList()
+    private var tempPosition : Int = 0
     private var tempImageLIst: ArrayList<String> = ArrayList()
+    private lateinit var imagesContainer: ViewGroup
 
     private var isUrl: Boolean = false
     private var tempFile: File? = null
     private var mCurrentPhotoPath: String = ""
+
     private lateinit var alertDialog: AlertDialog
     private lateinit var handler: DisplayHandler
-
-    private lateinit var imagesContainer: ViewGroup
-    private var tempPosition : Int = 0
-
-    companion object {
-        @SuppressLint("StaticFieldLeak")
-        lateinit var mContext: Context
-        private const val PICK_FROM_ALBUM = 1
-        private const val PICK_FROM_CAMERA = 2
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,7 +67,8 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
         mContext = this
 
         requestPermissions() //권한요청
-        imagesContainer = findViewById(R.id.add_images_container)
+
+        imagesContainer = findViewById(R.id.layout_add_images)
         memoDb = MemoDB.getInstance(this)
 
         val bundle = intent.extras //DetailActivity에서 편집 클릭시 (DetailActivity -> AddActivity)
@@ -78,7 +76,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
             setEditModeVisible(true)
 
             newMemo = bundle.getSerializable(("memo")) as Memo
-            setDataToForm(newMemo)
+            setDataToFormAndSave(newMemo)
         }
 
         ib_add_ok.setOnClickListener(this)
@@ -91,7 +89,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) { //중간에 취소시
             Toast.makeText(this, "취소 되었습니다.", Toast.LENGTH_SHORT).show()
-            if (tempFile != null) {
+            if (tempFile != null ) {
                 if (tempFile!!.exists()) {
                     if (tempFile!!.delete()) {
                         tempFile = null
@@ -116,12 +114,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
         setImageToButtonAndSave(bitmap)
     }
 
-    private fun makeBitmap(inputStream: InputStream?): Bitmap {
-        val options = BitmapFactory.Options()
-        options.inSampleSize = 8
-        return BitmapFactory.decodeStream(inputStream, null, options)!!
-    }
-
+    //추가시
     private fun setImageToButtonAndSave(bitmap: Bitmap) {
         val rotatedBitmap: Bitmap = if(!isUrl) getRotatedBitmap(mCurrentPhotoPath, bitmap) else bitmap
         val resizedBitmap = resizeBitmap(rotatedBitmap, 300, 400)
@@ -130,26 +123,33 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
         val thumbnail = imageHolder.iv_images
 
         thumbnail.setImageBitmap(resizedBitmap)
-
         imagesContainer.addView(imageHolder)
-        thumbnail.id = tempPosition
+
+        thumbnail.id = tempPosition //새로 추가된 이미지에 대해 포지션 값으로 id지정
         thumbnail.layoutParams = FrameLayout.LayoutParams(300, 400)
         thumbnail.setPadding(10)
-        thumbnail.setBackgroundResource(R.color.transparent)
 
-        tempImageLIst.add(convertBitmapToBase64(resizedBitmap))
+        tempImageLIst.add(convertBitmapToBase64(resizedBitmap))//임시 이미지 리스트에 저장
 
-        thumbnail.setOnLongClickListener { //롱클릭시 이미지 삭제
-//            Toast.makeText(this, "delete "+thumbnail.id, Toast.LENGTH_LONG).show()
-            tempImageLIst.removeAt(thumbnail.id)
+        thumbnail.setOnLongClickListener { //롱클릭시
+            tempImageLIst.removeAt(thumbnail.id) //해당 이미지 삭제 및 리스트에서 삭제
             imagesContainer.removeView(imageHolder)
             true
         }
         tempPosition++
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private fun makeBitmap(inputStream: InputStream?): Bitmap {
+        val options = BitmapFactory.Options()
+        options.inSampleSize = 8
+        return BitmapFactory.decodeStream(inputStream, null, options)!!
+    }
+
+    //bitmap->byteArray->base64
     private fun convertBitmapToBase64(resizedBitmap: Bitmap): String {
-        val stream = ByteArrayOutputStream()                    //bitmap->byteArray->base64
+        val stream = ByteArrayOutputStream()
         resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         val image = stream.toByteArray()
         return Base64.encodeToString(image, Base64.DEFAULT)
@@ -180,7 +180,8 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private fun setDataToForm(newMemo: Memo) {
+    //편집시
+    private fun setDataToFormAndSave(newMemo: Memo) {
         tempPosition = 0
 
         et_add_title.text = Editable.Factory.getInstance().newEditable(newMemo.memoTitle)
@@ -197,10 +198,10 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
 
         if (images != null && images[0] != "") {
             var position = 0
-            for (image in images) {
+            for (image in images) { // 이미지 하나마다
                 val imageHolder = LayoutInflater.from(this).inflate(R.layout.item_image, null)
                 val thumbnail = imageHolder.iv_images
-                thumbnail.id = position
+                thumbnail.id = position //position값으로 id 지정
 
                 val array: ByteArray = Base64.decode(image, Base64.DEFAULT)
                 Glide.with(this)
@@ -208,19 +209,18 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
                     .fitCenter()
                     .into(thumbnail)
 
-                imagesContainer.addView(imageHolder)
+                imagesContainer.addView(imageHolder) //뷰 그리기
                 thumbnail.layoutParams = FrameLayout.LayoutParams(300, 400)
                 thumbnail.setPadding(10)
-                thumbnail.setBackgroundResource(R.color.transparent)
 
-                thumbnail.setOnLongClickListener { //롱클릭시 이미지 삭제
-//                    Toast.makeText(this, thumbnail.id.toString(), Toast.LENGTH_LONG).show()
-                    if(thumbnail.id == 0){
-                        memoImageLIst[0] = ""
+                thumbnail.setOnLongClickListener { //롱클릭시
+                    if(thumbnail.id != 0){
+                        memoImageLIst.removeAt(thumbnail.id) //이미지 삭제
                     }else{
-                        memoImageLIst.removeAt(position - 1)
+                        memoImageLIst[0] = ""
                     }
-                    imagesContainer.removeView(imageHolder)
+
+                    imagesContainer.removeView(imageHolder) //해당 뷰 삭제
                     true
                 }
                 position++
@@ -234,7 +234,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
             R.id.ib_add_ok -> { //추가
                 val insertThread = Thread(Runnable {
                     try {
-                        storeItemToMemo()
+                        storeItemToMemo() //DB에 저장하기 위해 객체 수정하기
                         memoDb?.memoDao()?.insert(newMemo) //INSERT
                     } catch (e: Exception) {
                         Log.d("ljwLog", "AddActivity_insert_err : $e")
@@ -258,7 +258,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
             R.id.ib_add_edit -> { //편집
                 val updateThread = Thread(Runnable {
                     try {
-                        storeItemToMemo()
+                        storeItemToMemo() //DB에 저장하기 위해 객체 수정하기
                         memoDb?.memoDao()?.update(newMemo) //UPDATE
                     } catch (e: Exception) {
                         Log.d("ljwLog", "AddActivity_update_err : $e")
@@ -288,12 +288,13 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    //DB에 저장할 객체 수정하기
+    //DB에 저장하기 위해 객체 수정하기
     private fun storeItemToMemo() {
         newMemo.memoTitle = et_add_title.text.toString()
         newMemo.memoContent = et_add_content.text.toString()
+
         if(tempImageLIst.isNotEmpty()){
-            memoImageLIst.addAll(tempImageLIst)
+            memoImageLIst.addAll(tempImageLIst) //새로 추가된 이미지 확정시 임시 이미지 리스트에서 리스트로 이동
         }
 
         if (memoImageLIst.isEmpty()) {
@@ -404,6 +405,8 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
         isUrl = true
 
         val et = EditText(mContext)
+        et.setPadding(100)
+        et.setBackgroundResource(R.drawable.bg_edittext)
         et.setText(R.string.test_url_link)
 
         val builder = AlertDialog.Builder(this)
@@ -432,7 +435,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
                 conn.doInput = true
                 conn.connect()
                 val inputStream = conn.getInputStream()
-                bitmap = BitmapFactory.decodeStream(inputStream)
+                bitmap = BitmapFactory.decodeStream(inputStream) //이미지 받아오기
             } catch (e: IOException) {
                 //UnknownHostException, FileNotFoundException
                 Log.d("ljwLog", "AddActivity_imageFromUrlLink_UnknownHostException_err : $e")
@@ -454,9 +457,7 @@ class AddActivity : AppCompatActivity(), View.OnClickListener {
             Log.d("ljwLog", "AddActivity_getThread.join()_err : $e")
         }
 
-        if (isOk) {
-            setImageToButtonAndSave(bitmap)
-        }
+        if (isOk) { setImageToButtonAndSave(bitmap) }
     }
 
     @SuppressLint("HandlerLeak")

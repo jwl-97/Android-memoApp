@@ -23,9 +23,7 @@ class RecyclerviewAdapter(val context: Context, val memos: ArrayList<Memo>, val 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CustomViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_memo, parent, false)
-        return CustomViewHolder(
-            view
-        )
+        return CustomViewHolder(view)
     }
 
     override fun getItemCount(): Int {
@@ -35,11 +33,12 @@ class RecyclerviewAdapter(val context: Context, val memos: ArrayList<Memo>, val 
     override fun onBindViewHolder(holder: CustomViewHolder, position: Int) {
         holder.itemTitle.text = memos[position].memoTitle
         holder.itemContent.text = memos[position].memoContent
+        val thumbnailImage = memos[position].memoImages[0]
 
-        if (memos[position].memoImages[0] != "") {
-            val array: ByteArray = Base64.decode(memos[position].memoImages[0], Base64.DEFAULT)
+        if (thumbnailImage != "") {
+            val image: ByteArray = Base64.decode(thumbnailImage, Base64.DEFAULT)
             Glide.with(holder.context)
-                .load(array) //첫번째 사진을 썸네일로
+                .load(image) //첫번째 사진을 썸네일로
                 .fitCenter()
                 .into(holder.itemThumnail)
         }

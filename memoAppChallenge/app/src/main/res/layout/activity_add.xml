@@ -115,7 +115,7 @@
                         android:text="@string/image_delete_guide_text" />
 
                     <GridLayout
-                        android:id="@+id/add_images_container"
+                        android:id="@+id/layout_add_images"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:animateLayoutChanges="true"
