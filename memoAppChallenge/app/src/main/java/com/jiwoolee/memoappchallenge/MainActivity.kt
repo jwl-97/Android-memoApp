@@ -5,10 +5,12 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.jiwoolee.memoappchallenge.adapter.OnItemClick
 import com.jiwoolee.memoappchallenge.adapter.RecyclerviewAdapter
+import com.jiwoolee.memoappchallenge.databinding.ActivityMainBinding
 import com.jiwoolee.memoappchallenge.room.Memo
 import com.jiwoolee.memoappchallenge.room.MemoDB
 import kotlinx.android.synthetic.main.activity_main.*
@@ -17,14 +19,13 @@ class MainActivity : AppCompatActivity(), OnItemClick {
     private var memoDb: MemoDB? = null
     private var memoList : ArrayList<Memo> = arrayListOf<Memo>()
     private lateinit var mAdapter: RecyclerviewAdapter
-    private lateinit var recyclerView: RecyclerView
+    private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
 
         memoDb = MemoDB.getInstance(this)
-        recyclerView = findViewById(R.id.rv_main)
 
         getItemFromDb()
 
@@ -52,10 +53,10 @@ class MainActivity : AppCompatActivity(), OnItemClick {
     }
 
     private fun setRecyclerviewAdapter() {
-        mAdapter = RecyclerviewAdapter(this, memoList, this)
+        mAdapter = RecyclerviewAdapter(memoList, this)
         mAdapter.notifyDataSetChanged()
-        recyclerView.adapter = mAdapter
-        recyclerView.layoutManager = LinearLayoutManager(this) as RecyclerView.LayoutManager?
+        binding.rvMain.adapter = mAdapter
+        binding.rvMain.layoutManager = LinearLayoutManager(this) as RecyclerView.LayoutManager?
     }
 
     //뒤로가기 버튼을 두번 연속으로 눌러야 종료
